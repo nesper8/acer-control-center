@@ -21,8 +21,8 @@
 
 #include <linux/version.h>
 #include "../../tuxedo_keyboard_common.h"
-#include "interfaces.h"
-#include "leds.h"
+#include "clevo_interfaces.h"
+#include "clevo_leds.h"
 
 // Clevo event codes
 #define CLEVO_EVENT_KB_LEDS_DECREASE		0x81

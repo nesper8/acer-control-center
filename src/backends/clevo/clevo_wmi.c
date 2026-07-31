@@ -21,7 +21,7 @@
 #include <linux/module.h>
 #include <linux/wmi.h>
 #include <linux/version.h>
-#include "interfaces.h"
+#include "clevo_interfaces.h"
 
 static int clevo_wmi_evaluate(u32 wmi_method_id, u32 wmi_arg, union acpi_object **result)
 {
