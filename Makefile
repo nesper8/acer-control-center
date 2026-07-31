@@ -19,6 +19,8 @@
 obj-m :=	src/tuxedo_keyboard.o \
 		src/backends/clevo/clevo_wmi.o \
 		src/backends/clevo/clevo_acpi.o \
+		src/backends/acer/acer_wmi.o \
+		src/backends/acer/acer_acpi.o \
 		src/tuxedo_io/tuxedo_io.o \
 		src/backends/uniwill/uniwill_wmi.o
 
