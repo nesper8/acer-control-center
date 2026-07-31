@@ -19,7 +19,7 @@
 #define pr_fmt(fmt) "tuxedo_keyboard" ": " fmt
 
 #include "tuxedo_keyboard_common.h"
-#include "clevo_keyboard.h"
+#include "backends/clevo/keyboard.h"
 #include "uniwill_keyboard.h"
 #include <linux/mutex.h>
 #include <asm/cpu_device_id.h>

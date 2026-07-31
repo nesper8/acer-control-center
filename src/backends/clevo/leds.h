@@ -44,9 +44,9 @@ void clevo_leds_set_color_extern(u32 color);
 
 // TODO The following should go into a seperate .c file, but for this to work more reworking is required in the tuxedo_keyboard structure.
 
-#include "clevo_leds.h"
+#include "leds.h"
 
-#include "clevo_interfaces.h"
+#include "interfaces.h"
 
 #include <linux/led-class-multicolor.h>
 #include <linux/delay.h>

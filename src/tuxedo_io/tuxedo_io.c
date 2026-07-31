@@ -28,7 +28,7 @@
 #include <linux/delay.h>
 #include <linux/version.h>
 #include <linux/dmi.h>
-#include "../clevo_interfaces.h"
+#include "../backends/clevo/interfaces.h"
 #include "../uniwill_interfaces.h"
 #include "tuxedo_io_ioctl.h"
 

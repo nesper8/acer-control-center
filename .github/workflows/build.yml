@@ -1,0 +1,47 @@
+name: Build Kernel Module
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+
+          sudo apt-get install -y \
+            build-essential \
+            kmod \
+            linux-headers-generic
+
+      - name: Locate kernel headers
+        id: headers
+        run: |
+          HEADER_DIR=$(find /usr/src -maxdepth 1 -type d -name "linux-headers-*" | sort | tail -n1)
+          echo "dir=$HEADER_DIR" >> "$GITHUB_OUTPUT"
+          echo "Using headers: $HEADER_DIR"
+
+      - name: Build module
+        run: |
+          make KDIR="${{ steps.headers.outputs.dir }}"
+
+      - name: Verify build
+        run: |
+          find . -name "*.ko"
+
+      - name: Upload modules
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-modules
+          path: |
+            **/*.ko

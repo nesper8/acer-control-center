@@ -21,7 +21,7 @@
 #include <linux/module.h>
 #include <linux/acpi.h>
 #include <linux/version.h>
-#include "clevo_interfaces.h"
+#include "interfaces.h"
 
 #define DRIVER_NAME			"clevo_acpi"
 
