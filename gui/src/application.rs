@@ -1,8 +1,7 @@
 use adw::prelude::*;
-use adw::Application;
+use adw::{Application, StyleManager};
 use gtk::gio;
-use gtk::CssProvider;
-use gtk::STYLE_PROVIDER_PRIORITY_APPLICATION;
+use gtk::{CssProvider, STYLE_PROVIDER_PRIORITY_APPLICATION};
 
 use crate::window::MainWindow;
 
@@ -31,9 +30,10 @@ impl AcerControlCenterApplication {
 
     fn setup_startup(&self) {
         self.app.connect_startup(|_| {
+            setup_theme();
             load_css();
 
-            log::info!("Acer Control Center started.");
+            log::info!("Acer Control Center initialized.");
         });
     }
 
@@ -48,16 +48,21 @@ impl AcerControlCenterApplication {
     }
 }
 
+fn setup_theme() {
+    let manager = StyleManager::default();
+    manager.set_color_scheme(adw::ColorScheme::PreferDark);
+}
+
 fn load_css() {
     let provider = CssProvider::new();
 
     provider.load_from_path("resources/css/style.css");
 
     gtk::style_context_add_provider_for_display(
-        &gtk::gdk::Display::default().expect("No display found."),
+        &gtk::gdk::Display::default().expect("No display available."),
         &provider,
         STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
 
-    log::info!("CSS loaded.");
+    log::info!("Stylesheet loaded.");
 }

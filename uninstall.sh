@@ -1,93 +1,85 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
-if [ "$EUID" -ne 0 ]; then
-    echo "This script requires root rights. Execute it with sudo."
+if [[ $EUID -ne 0 ]]; then
+    echo "Please run this script with sudo."
     exit 1
 fi
 
-echo "==> Uninstalling Acer Control Center driver..."
+echo "=========================================="
+echo " Acer Control Center Uninstaller"
+echo "=========================================="
+echo
 
-#
-# Unload modules (reverse dependency order)
-#
-echo "==> Unloading kernel modules..."
+echo "==> Stopping daemon..."
 
-for module in tuxedo_keyboard tuxedo_io acer_wmi acer_acpi; do
-    if lsmod | grep -q "^${module}"; then
-        echo "Removing ${module}..."
-        rmmod "${module}" || true
-    fi
-done
+systemctl stop acer-control-daemon.service 2>/dev/null || true
+systemctl disable acer-control-daemon.service 2>/dev/null || true
 
-#
-# Remove DKMS package
-#
-if command -v dkms >/dev/null 2>&1; then
-    echo "==> Removing DKMS package..."
+echo "==> Removing systemd service..."
 
-    dkms status | while IFS= read -r line; do
-        if echo "$line" | grep -qi "tuxedo"; then
-            PACKAGE=$(echo "$line" | cut -d',' -f1 | cut -d'/' -f1)
-            VERSION=$(echo "$line" | cut -d',' -f1 | cut -d'/' -f2)
+rm -f /usr/lib/systemd/system/acer-control-daemon.service
+rm -f /etc/systemd/system/acer-control-daemon.service
 
-            echo "Removing ${PACKAGE}/${VERSION}..."
-            dkms remove "${PACKAGE}/${VERSION}" --all || true
-        fi
-    done
-fi
+systemctl daemon-reload
+systemctl reset-failed 2>/dev/null || true
 
-#
-# Remove modprobe configuration
-#
-echo "==> Removing modprobe configuration..."
+echo "==> Removing D-Bus policy..."
 
-rm -f /etc/modprobe.d/tuxedo_keyboard.conf
+rm -f /usr/share/dbus-1/system.d/io.github.stanlysilas.AcerControl.conf
 
-#
-# Remove automatic module loading
-#
-echo "==> Cleaning /etc/modules..."
-
-if [ -f /etc/modules ]; then
-    sed -i '/^tuxedo_keyboard$/d' /etc/modules
-fi
-
-#
-# Remove leftover DKMS source
-#
-echo "==> Removing DKMS source..."
-
-rm -rf /usr/src/tuxedo-keyboard-*
-
-#
-# Remove leftover modules
-#
-echo "==> Removing installed kernel modules..."
-
-find /lib/modules -type f \( \
-    -name "tuxedo_keyboard.ko*" -o \
-    -name "tuxedo_io.ko*" -o \
-    -name "acer_wmi.ko*" -o \
-    -name "acer_acpi.ko*" \
-\) -exec rm -f {} \;
-
-#
-# Rebuild module dependency database
-#
-echo "==> Running depmod..."
-
-depmod -a
+echo "==> Removing udev rules..."
 
 rm -f /etc/udev/rules.d/99-acercontrol.rules
 
 udevadm control --reload-rules
 udevadm trigger
 
+echo "==> Removing executables..."
+
+rm -f /usr/bin/acer-control-center
+rm -f /usr/bin/acer-control-daemon
+
+echo "==> Removing desktop entry..."
+
+rm -f /usr/share/applications/acer-control-center.desktop
+
+echo "==> Removing icons..."
+
+rm -f /usr/share/icons/hicolor/256x256/apps/acer-control-center.png
+rm -f /usr/share/pixmaps/acer-control-center.png
+
+echo "==> Removing shared library..."
+
+rm -f /usr/lib/libacercontrol.so
+rm -f /usr/lib64/libacercontrol.so
+
+ldconfig
+
+echo "==> Removing DKMS module..."
+
+if command -v dkms >/dev/null 2>&1; then
+    if dkms status | grep -q "^acer_keyboard"; then
+        VERSION=$(dkms status | awk -F'[:,]' '/^acer_keyboard/ {print $2; exit}' | xargs)
+
+        if [[ -n "$VERSION" ]]; then
+            dkms remove acer_keyboard/"$VERSION" --all || true
+        fi
+    fi
+fi
+
+rm -rf /usr/src/acer_keyboard-*
+
+echo "==> Removing loaded kernel module..."
+
+modprobe -r acer_keyboard 2>/dev/null || true
+
+depmod -a
+
 echo
-echo "==============================================="
-echo " Acer Control Center driver has been removed."
-echo "==============================================="
+echo "=========================================="
+echo " Acer Control Center has been removed."
+echo "=========================================="
 echo
 echo "A reboot is recommended."

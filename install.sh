@@ -1,43 +1,67 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 set -euo pipefail
 
-if [ "${EUID}" -ne 0 ]; then
-    echo "This script must be run as root."
-    echo "Usage: sudo ./install.sh"
+if [[ $EUID -ne 0 ]]; then
+    echo "Please run this script with sudo."
+    echo
+    echo "Usage:"
+    echo "sudo ./install.sh"
     exit 1
 fi
 
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+echo "=========================================="
+echo " Acer Control Center Installer"
+echo "=========================================="
+echo
+
 install_packages() {
-    if [ -f /etc/arch-release ]; then
+    if [[ -f /etc/arch-release ]]; then
         echo "Detected Arch Linux"
+
         pacman -Sy --noconfirm
+
         pacman -S --needed --noconfirm \
             git \
             gcc \
             make \
             dkms \
+            linux-headers \
             base-devel \
             meson \
             ninja \
             rust \
             cargo \
-            pkgconf
-    elif [ -f /etc/debian_version ]; then
-        echo "Detected Debian/Ubuntu"
+            pkgconf \
+            gtk4 \
+            libadwaita
+
+    elif [[ -f /etc/debian_version ]]; then
+        echo "Detected Debian / Ubuntu"
+
         apt update
+
         apt install -y \
             git \
             gcc \
+            g++ \
             make \
             dkms \
             build-essential \
+            linux-headers-$(uname -r) \
             meson \
             ninja-build \
             cargo \
             rustc \
-            pkg-config
-    elif [ -f /etc/redhat-release ]; then
-        echo "Detected Fedora/RHEL"
+            pkg-config \
+            libgtk-4-dev \
+            libadwaita-1-dev
+
+    elif [[ -f /etc/redhat-release ]]; then
+        echo "Detected Fedora"
+
         dnf install -y \
             git \
             gcc \
@@ -50,9 +74,13 @@ install_packages() {
             ninja-build \
             cargo \
             rust \
-            pkgconf-pkg-config
+            pkgconf-pkg-config \
+            gtk4-devel \
+            libadwaita-devel
+
     elif command -v zypper >/dev/null 2>&1; then
         echo "Detected openSUSE"
+
         zypper install -y \
             git \
             gcc \
@@ -65,7 +93,10 @@ install_packages() {
             ninja \
             cargo \
             rust \
-            pkg-config
+            pkg-config \
+            gtk4-devel \
+            libadwaita-devel
+
     else
         echo "Unsupported Linux distribution."
         exit 1
@@ -74,42 +105,82 @@ install_packages() {
 
 install_packages
 
-echo "Cleaning previous driver build..."
-make -C driver clean || true
+echo
+echo "==> Cleaning previous driver build..."
 
-echo "Installing DKMS module..."
-make -C driver dkmsinstall
+make -C "$ROOT_DIR/driver" clean || true
 
-echo "Building libacercontrol..."
-if [ -d lib/build ]; then
-    meson setup lib/build lib --reconfigure
+echo
+echo "==> Installing DKMS driver..."
+
+make -C "$ROOT_DIR/driver" dkmsinstall
+
+echo
+echo "==> Building libacercontrol..."
+
+if [[ -d "$ROOT_DIR/lib/build" ]]; then
+    meson setup "$ROOT_DIR/lib/build" "$ROOT_DIR/lib" --reconfigure
 else
-    meson setup lib/build lib
+    meson setup "$ROOT_DIR/lib/build" "$ROOT_DIR/lib"
 fi
-meson compile -C lib/build
 
-echo "Installing libacercontrol..."
-meson install -C lib/build
+meson compile -C "$ROOT_DIR/lib/build"
 
-echo "Building daemon..."
-cargo build --release --manifest-path daemon/Cargo.toml
+echo
+echo "==> Installing libacercontrol..."
 
-echo "Installing daemon binary..."
+meson install -C "$ROOT_DIR/lib/build"
+
+ldconfig
+
+echo
+echo "==> Building daemon..."
+
+cargo build \
+    --release \
+    --manifest-path "$ROOT_DIR/daemon/Cargo.toml"
+
+echo
+echo "==> Installing daemon..."
+
 install -Dm755 \
-    daemon/target/release/acer-control-daemon \
+    "$ROOT_DIR/daemon/target/release/acer-control-daemon" \
     /usr/bin/acer-control-daemon
 
-echo "Installing systemd service..."
-install -Dm644 \
-    packaging/systemd/acer-control-daemon.service \
-    /usr/lib/systemd/system/acer-control-daemon.service
+echo
+echo "==> Building GUI..."
 
-echo "Installing D-Bus policy..."
+cargo build \
+    --release \
+    --manifest-path "$ROOT_DIR/gui/Cargo.toml"
+
+echo
+echo "==> Installing GUI..."
+
+install -Dm755 \
+    "$ROOT_DIR/gui/target/release/acer-control-center" \
+    /usr/bin/acer-control-center
+
+echo
+echo "==> Installing udev rules..."
+
 install -Dm644 \
-    packaging/dbus/io.github.stanlysilas.AcerControl.conf \
+    "$ROOT_DIR/packaging/udev/99-acercontrol.rules" \
+    /etc/udev/rules.d/99-acercontrol.rules
+
+udevadm control --reload-rules
+udevadm trigger
+
+echo
+echo "==> Installing D-Bus policy..."
+
+install -Dm644 \
+    "$ROOT_DIR/packaging/dbus/io.github.stanlysilas.AcerControl.conf" \
     /usr/share/dbus-1/system.d/io.github.stanlysilas.AcerControl.conf
 
-echo "Reloading D-Bus config..."
+echo
+echo "==> Reloading D-Bus..."
+
 busctl call \
     --system \
     org.freedesktop.DBus \
@@ -117,13 +188,33 @@ busctl call \
     org.freedesktop.DBus \
     ReloadConfig >/dev/null || true
 
-echo "Reloading systemd..."
+echo
+echo "==> Installing systemd service..."
+
+install -Dm644 \
+    "$ROOT_DIR/packaging/systemd/acer-control-daemon.service" \
+    /usr/lib/systemd/system/acer-control-daemon.service
+
 systemctl daemon-reload
 
-echo "Enabling daemon..."
+echo
+echo "==> Enabling daemon..."
+
 systemctl enable acer-control-daemon.service
 
-echo "Starting daemon..."
+echo
+echo "==> Starting daemon..."
+
 systemctl restart acer-control-daemon.service
 
-echo "Installation complete."
+echo
+echo "=========================================="
+echo " Acer Control Center installed successfully"
+echo "=========================================="
+echo
+echo "Please reboot your laptop before first use."
+echo
+echo "Launch the GUI using:"
+echo
+echo "    acer-control-center"
+echo

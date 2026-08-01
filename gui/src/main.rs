@@ -10,13 +10,7 @@ mod settings;
 
 mod libacercontrol;
 
-mod widgets {
-    pub mod sidebar;
-    pub mod fan_widget;
-    pub mod gauge;
-    pub mod laptop;
-    pub mod rgb_preview;
-}
+mod widgets;
 
 fn main() -> glib::ExitCode {
     env_logger::init();

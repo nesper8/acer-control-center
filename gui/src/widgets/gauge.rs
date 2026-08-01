@@ -2,6 +2,7 @@ use std::cell::Cell;
 use std::f64::consts::PI;
 use std::rc::Rc;
 use std::time::Duration;
+use crate::widgets::fan_widget::FanWidget;
 
 use gtk::glib::{self, ControlFlow};
 use gtk::prelude::*;
@@ -17,6 +18,7 @@ pub struct Gauge {
     root: Box,
     state: Rc<GaugeState>,
     drawing: DrawingArea,
+    fan: FanWidget,
     value_label: Label,
 }
 
@@ -32,21 +34,21 @@ impl Gauge {
             .orientation(Orientation::Vertical)
             .spacing(0)
             .halign(Align::Center)
-            .valign(Align::Start)
+            .valign(Align::Center)
             .build();
 
-        root.set_size_request(260, 220);
-        root.set_hexpand(false);
-        root.set_vexpand(false);
+        root.set_size_request(300, 300);
+        root.set_hexpand(true);
+        root.set_vexpand(true);
 
         let drawing = DrawingArea::builder()
-            .content_width(260)
-            .content_height(220)
+            .content_width(300)
+            .content_height(300)
             .build();
 
-        drawing.set_size_request(260, 220);
-        drawing.set_hexpand(false);
-        drawing.set_vexpand(false);
+        drawing.set_size_request(300, 300);
+        drawing.set_hexpand(true);
+        drawing.set_vexpand(true);
 
         let value_label = Label::new(Some("0%"));
         value_label.add_css_class("title-1");
@@ -55,6 +57,9 @@ impl Gauge {
         let name_label = Label::new(Some(title));
         name_label.add_css_class("heading");
         name_label.set_halign(Align::Center);
+        
+        let fan = FanWidget::new();
+        fan.set_color(0.22, 0.75, 1.0);
 
         let center_box = Box::builder()
             .orientation(Orientation::Vertical)
@@ -63,18 +68,21 @@ impl Gauge {
             .valign(Align::Center)
             .build();
 
-        center_box.set_margin_top(0);
+        center_box.set_margin_top(70);
         center_box.append(&value_label);
         center_box.append(&name_label);
 
         let overlay = Overlay::new();
         overlay.set_child(Some(&drawing));
+        fan.widget().set_halign(Align::Center);
+        fan.widget().set_valign(Align::Center);
+
+        overlay.add_overlay(fan.widget());
         overlay.add_overlay(&center_box);
         overlay.set_halign(Align::Center);
-        overlay.set_valign(Align::Start);
-        overlay.set_hexpand(false);
-        overlay.set_vexpand(false);
-        overlay.set_size_request(240, 220);
+        overlay.set_valign(Align::Center);
+        overlay.set_hexpand(true);
+        overlay.set_vexpand(true);
 
         let draw_state = state.clone();
         drawing.set_draw_func(move |_, cr, width, height| {
@@ -82,11 +90,11 @@ impl Gauge {
             let height = height as f64;
             let size = width.min(height);
             let cx = width / 2.0;
-            let cy = height * 0.73;
-            let radius = size * 0.45;
+            let cy = height * 0.5;
+            let radius = size * 0.42;
 
-            let start = deg_to_rad(-150.0);
-            let end = deg_to_rad(-30.0);
+            let start = deg_to_rad(-210.0);
+            let end = deg_to_rad(30.0);
             let percent = draw_state.current.get().clamp(0.0_f64, 100.0_f64);
             let current_angle = angle_for_percent(percent, start, end);
 
@@ -109,8 +117,8 @@ impl Gauge {
                 let angle = angle_for_percent(t, start, end);
                 let is_major = tick % 5 == 0;
 
-                let outer = radius + if is_major { 14.0 } else { 9.0 };
-                let inner = radius - if is_major { 15.0 } else { 9.0 };
+                let outer = radius + if is_major { 16.0 } else { 10.0 };
+                let inner = radius - if is_major { 18.0 } else { 11.0 };
 
                 let x1 = cx + inner * angle.cos();
                 let y1 = cy + inner * angle.sin();
@@ -140,7 +148,7 @@ impl Gauge {
 
             for mark in major_marks {
                 let angle = angle_for_percent(mark, start, end);
-                let label_radius = radius + 28.0;
+                let label_radius = radius + 36.0;
                 let x = cx + label_radius * angle.cos();
                 let y = cy + label_radius * angle.sin();
                 let text = format!("{:.0}", mark);
@@ -174,6 +182,7 @@ impl Gauge {
         let drawing_weak = drawing.downgrade();
         let value_label_weak = value_label.downgrade();
         let state_for_tick = state.clone();
+        let fan_for_tick = fan.clone();
 
         glib::timeout_add_local(Duration::from_millis(16), move || {
             let Some(drawing) = drawing_weak.upgrade() else {
@@ -194,6 +203,7 @@ impl Gauge {
             };
 
             state_for_tick.current.set(next);
+            fan_for_tick.set_speed(next);
 
             value_label.set_label(&format!("{:.0}%", next.round()));
             drawing.queue_draw();
@@ -205,6 +215,7 @@ impl Gauge {
             root,
             state,
             drawing,
+            fan,
             value_label,
         }
     }
@@ -220,6 +231,7 @@ impl Gauge {
     
     pub fn set_color(&self, r: f64, g: f64, b: f64) {
         self.state.color.set((r, g, b));
+        self.fan.set_color(r, g, b);
         self.drawing.queue_draw();
     }
 }

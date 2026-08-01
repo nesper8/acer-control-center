@@ -257,20 +257,16 @@ static void acer_keyboard_event_callb(u32 event)
 
 	switch (key_event) {
 		case ACER_EVENT_KB_LEDS_CYCLE_MODE:
-		if (acer_leds_get_backlight_type() == ACER_KB_BACKLIGHT_TYPE_FIXED_COLOR) {
-			// Special key combination. Opens TCC by default when installed.
-			input_report_key(acer_keyboard_driver.input_device, KEY_LEFTMETA, 1);
-			input_report_key(acer_keyboard_driver.input_device, KEY_LEFTALT, 1);
-			input_report_key(acer_keyboard_driver.input_device, KEY_F6, 1);
-			input_sync(acer_keyboard_driver.input_device);
-			input_report_key(acer_keyboard_driver.input_device, KEY_F6, 0);
-			input_report_key(acer_keyboard_driver.input_device, KEY_LEFTALT, 0);
-			input_report_key(acer_keyboard_driver.input_device, KEY_LEFTMETA, 0);
-			input_sync(acer_keyboard_driver.input_device);
-		} else {
-			set_next_color_whole_kb();
-		}
-			break;
+	            input_report_key(acer_keyboard_driver.input_device, KEY_LEFTMETA, 1);
+	            input_report_key(acer_keyboard_driver.input_device, KEY_LEFTALT, 1);
+	            input_report_key(acer_keyboard_driver.input_device, KEY_F6, 1);
+	            input_sync(acer_keyboard_driver.input_device);
+
+	            input_report_key(acer_keyboard_driver.input_device, KEY_F6, 0);
+	            input_report_key(acer_keyboard_driver.input_device, KEY_LEFTALT, 0);
+	            input_report_key(acer_keyboard_driver.input_device, KEY_LEFTMETA, 0);
+	            input_sync(acer_keyboard_driver.input_device);
+	            break;
 		case ACER_EVENT_KB_LEDS_CYCLE_BRIGHTNESS:
 			acer_leds_notify_brightness_change_extern();
 			break;

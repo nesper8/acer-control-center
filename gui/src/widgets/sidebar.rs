@@ -1,25 +1,63 @@
 use adw::prelude::*;
 use gtk::{
-    Align, Box, Label, ListBox, ListBoxRow, Orientation, SelectionMode, Stack,
+    Align, Box, Image, Label, ListBox, ListBoxRow, Orientation, SelectionMode, Stack,
 };
 
-pub struct Sidebar {
-    container: Box,
-}
+pub struct Sidebar;
 
 impl Sidebar {
     pub fn new(stack: &Stack) -> Box {
-        let list = ListBox::builder()
-            .selection_mode(SelectionMode::Single)
-            .css_classes(vec!["navigation-sidebar"])
+        let root = Box::builder()
+            .orientation(Orientation::Vertical)
+            .width_request(280)
+            .hexpand(false)
+            .vexpand(true)
             .build();
 
-        add_row(&list, "Dashboard");
-        add_row(&list, "RGB");
-        add_row(&list, "Cooling");
-        add_row(&list, "Performance");
-        add_row(&list, "Battery");
-        add_row(&list, "Settings");
+        root.add_css_class("sidebar");
+
+        let branding = Box::builder()
+            .orientation(Orientation::Horizontal)
+            .spacing(4)
+            .margin_top(28)
+            .margin_bottom(24)
+            .margin_start(20)
+            .margin_end(20)
+            .build();
+
+        let logo = Image::from_icon_name("computer-symbolic");
+        logo.set_pixel_size(42);
+
+        let title = Label::builder()
+            .label("ACER")
+            .halign(Align::Start)
+            .build();
+
+        title.add_css_class("sidebar-title");
+
+        let subtitle = Label::builder()
+            .label("CONTROL CENTER")
+            .halign(Align::Start)
+            .build();
+
+        subtitle.add_css_class("sidebar-subtitle");
+
+        branding.append(&logo);
+        branding.append(&title);
+        branding.append(&subtitle);
+
+        let list = ListBox::builder()
+            .selection_mode(SelectionMode::Single)
+            .build();
+
+        list.add_css_class("sidebar-list");
+
+        add_row(&list, "go-home-symbolic", "Dashboard");
+        add_row(&list, "input-keyboard-symbolic", "Keyboard RGB");
+        add_row(&list, "weather-windy-symbolic", "Cooling");
+        add_row(&list, "speedometer-symbolic", "Performance");
+        add_row(&list, "battery-good-symbolic", "Battery");
+        add_row(&list, "preferences-system-symbolic", "Settings");
 
         let stack_clone = stack.clone();
 
@@ -39,35 +77,39 @@ impl Sidebar {
 
         list.select_row(list.row_at_index(0).as_ref());
 
-        let container = Box::builder()
-            .orientation(Orientation::Vertical)
-            .width_request(240)
-            .vexpand(true)
-            .build();
+        root.append(&branding);
+        root.append(&list);
 
-        container.append(&list);
-
-        container
+        root
     }
 }
 
-fn add_row(list: &ListBox, title: &str) {
-    let label = Label::builder()
-        .label(title)
-        .halign(Align::Start)
+fn add_row(list: &ListBox, icon: &str, title: &str) {
+    let row_box = Box::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(14)
         .margin_top(12)
         .margin_bottom(12)
         .margin_start(18)
         .margin_end(18)
         .build();
 
-    let row_box = Box::builder()
-        .orientation(Orientation::Horizontal)
+    let image = Image::from_icon_name(icon);
+    image.set_pixel_size(20);
+
+    let label = Label::builder()
+        .label(title)
+        .halign(Align::Start)
+        .hexpand(true)
         .build();
 
+    label.add_css_class("sidebar-item-label");
+
+    row_box.append(&image);
     row_box.append(&label);
 
     let row = ListBoxRow::new();
+    row.add_css_class("sidebar-row");
     row.set_child(Some(&row_box));
 
     list.append(&row);
