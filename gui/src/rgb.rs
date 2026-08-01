@@ -1,5 +1,4 @@
-use std::io::Write;
-use std::process::{Command, Stdio};
+use std::cell::Cell;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -11,8 +10,7 @@ use gtk::{
     Align, Box, ColorDialog, ColorDialogButton, DrawingArea, Frame, Grid, Label, Orientation, Scale,
 };
 
-const LED_BRIGHTNESS_PATH: &str = "/sys/class/leds/rgb:kbd_backlight/brightness";
-const LED_COLOR_PATH: &str = "/sys/class/leds/rgb:kbd_backlight/multi_intensity";
+use crate::libacercontrol::dbus::AcerControlDBus;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct LedColor {
@@ -22,26 +20,26 @@ struct LedColor {
 }
 
 struct RgbUiState {
-    syncing: std::cell::Cell<bool>,
-    brightness: std::cell::Cell<u8>,
-    color: std::cell::Cell<LedColor>,
+    syncing: Cell<bool>,
+    brightness: Cell<u8>,
+    color: Cell<LedColor>,
 }
 
 pub struct RgbPage;
 
 impl RgbPage {
     pub fn new() -> Box {
-        let initial_brightness = read_brightness().unwrap_or(255);
-        let initial_color = read_color().unwrap_or(LedColor {
+        let initial_brightness = read_brightness_from_daemon().unwrap_or(255);
+        let initial_color = read_color_from_daemon().unwrap_or(LedColor {
             r: 255,
             g: 255,
             b: 255,
         });
 
         let state = Rc::new(RgbUiState {
-            syncing: std::cell::Cell::new(false),
-            brightness: std::cell::Cell::new(initial_brightness),
-            color: std::cell::Cell::new(initial_color),
+            syncing: Cell::new(false),
+            brightness: Cell::new(initial_brightness),
+            color: Cell::new(initial_color),
         });
 
         let root = Box::builder()
@@ -65,7 +63,7 @@ impl RgbPage {
             .build();
 
         let subtitle = Label::builder()
-            .label("Keyboard backlight color and brightness are controlled through the LED sysfs interface.")
+            .label("Keyboard backlight color and brightness are controlled through the daemon over D-Bus.")
             .wrap(true)
             .halign(Align::Start)
             .build();
@@ -180,7 +178,6 @@ impl RgbPage {
             let state = state.clone();
             let preview_area = preview_area.clone();
             let readout_label = readout_label.clone();
-            let color_button = color_button.clone();
 
             color_button.connect_rgba_notify(move |button| {
                 if state.syncing.get() {
@@ -190,7 +187,7 @@ impl RgbPage {
                 let color = led_color_from_rgba(&button.rgba());
                 state.color.set(color);
 
-                match write_color_with_pkexec(color) {
+                match write_color_via_daemon(color) {
                     Ok(()) => {
                         update_readout(&readout_label, color, state.brightness.get());
                         preview_area.queue_draw();
@@ -215,7 +212,7 @@ impl RgbPage {
                 let brightness = scale.value().round().clamp(0.0, 255.0) as u8;
                 state.brightness.set(brightness);
 
-                match write_brightness_with_pkexec(brightness) {
+                match write_brightness_via_daemon(brightness) {
                     Ok(()) => {
                         update_readout(&readout_label, state.color.get(), brightness);
                         preview_area.queue_draw();
@@ -241,23 +238,33 @@ impl RgbPage {
 
                 let mut changed = false;
 
-                if let Some(brightness) = read_brightness() {
-                    if brightness != state.brightness.get() {
-                        state.syncing.set(true);
-                        brightness_scale.set_value(brightness as f64);
-                        state.brightness.set(brightness);
-                        state.syncing.set(false);
-                        changed = true;
+                match read_brightness_from_daemon() {
+                    Ok(brightness) => {
+                        if brightness != state.brightness.get() {
+                            state.syncing.set(true);
+                            brightness_scale.set_value(brightness as f64);
+                            state.brightness.set(brightness);
+                            state.syncing.set(false);
+                            changed = true;
+                        }
+                    }
+                    Err(err) => {
+                        readout_label.set_label(&err);
                     }
                 }
 
-                if let Some(color) = read_color() {
-                    if color != state.color.get() {
-                        state.syncing.set(true);
-                        color_button.set_rgba(&rgba_from_led_color(color));
-                        state.color.set(color);
-                        state.syncing.set(false);
-                        changed = true;
+                match read_color_from_daemon() {
+                    Ok(color) => {
+                        if color != state.color.get() {
+                            state.syncing.set(true);
+                            color_button.set_rgba(&rgba_from_led_color(color));
+                            state.color.set(color);
+                            state.syncing.set(false);
+                            changed = true;
+                        }
+                    }
+                    Err(err) => {
+                        readout_label.set_label(&err);
                     }
                 }
 
@@ -274,70 +281,21 @@ impl RgbPage {
     }
 }
 
-fn read_brightness() -> Option<u8> {
-    std::fs::read_to_string(LED_BRIGHTNESS_PATH)
-        .ok()?
-        .trim()
-        .parse::<u8>()
-        .ok()
+fn read_brightness_from_daemon() -> Result<u8, String> {
+    AcerControlDBus::new()?.keyboard_brightness()
 }
 
-fn read_color() -> Option<LedColor> {
-    let content = std::fs::read_to_string(LED_COLOR_PATH).ok()?;
-    let mut values = content
-        .split_whitespace()
-        .filter_map(|part| part.parse::<u8>().ok());
-
-    Some(LedColor {
-        r: values.next()?,
-        g: values.next()?,
-        b: values.next()?,
-    })
+fn read_color_from_daemon() -> Result<LedColor, String> {
+    let (r, g, b) = AcerControlDBus::new()?.keyboard_color()?;
+    Ok(LedColor { r, g, b })
 }
 
-fn write_brightness_with_pkexec(brightness: u8) -> Result<(), String> {
-    write_with_pkexec(LED_BRIGHTNESS_PATH, &format!("{brightness}\n"))
+fn write_brightness_via_daemon(brightness: u8) -> Result<(), String> {
+    AcerControlDBus::new()?.set_keyboard_brightness(brightness)
 }
 
-fn write_color_with_pkexec(color: LedColor) -> Result<(), String> {
-    write_with_pkexec(
-        LED_COLOR_PATH,
-        &format!("{} {} {}\n", color.r, color.g, color.b),
-    )
-}
-
-fn write_with_pkexec(path: &str, value: &str) -> Result<(), String> {
-    let mut child = Command::new("/usr/bin/pkexec")
-        .arg("/usr/bin/tee")
-        .arg(path)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|err| format!("Failed to start privileged write helper: {err}"))?;
-
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(value.as_bytes())
-            .map_err(|err| format!("Failed to send data to privileged helper: {err}"))?;
-    } else {
-        return Err("Privileged helper stdin is unavailable".into());
-    }
-
-    let output = child
-        .wait_with_output()
-        .map_err(|err| format!("Failed to complete privileged write: {err}"))?;
-
-    if output.status.success() {
-        Ok(())
-    } else {
-        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        if stderr.is_empty() {
-            Err("Privileged write failed".into())
-        } else {
-            Err(format!("Privileged write failed: {stderr}"))
-        }
-    }
+fn write_color_via_daemon(color: LedColor) -> Result<(), String> {
+    AcerControlDBus::new()?.set_keyboard_color(color.r, color.g, color.b)
 }
 
 fn led_color_from_rgba(rgba: &RGBA) -> LedColor {
