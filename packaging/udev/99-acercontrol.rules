@@ -1,0 +1,2 @@
+KERNEL=="acer_io", GROUP="acercontrol", MODE="0660"
+SUBSYSTEM=="leds", ATTR{multi_index}=="red green blue", GROUP="acercontrol", MODE="0660"
