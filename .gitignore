@@ -25,3 +25,25 @@ rpm
 deb/tuxedo-keyboard-*
 *.deb
 *.rpm
+
+# Rust
+target/
+**/target/
+
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Backup files
+*.swp
+*.swo
+*~
