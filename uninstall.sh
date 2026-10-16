@@ -42,6 +42,14 @@ rm -f /etc/udev/rules.d/99-acercontrol.rules
 udevadm control --reload-rules
 udevadm trigger
 
+echo "==> Removing kernel module autoload configuration..."
+
+rm -f /etc/modules-load.d/acer-control-center.conf
+
+echo "==> Removing loaded acer_io kernel module..."
+
+modprobe -r acer_io 2>/dev/null || true
+
 echo "==> Removing executables..."
 
 rm -f /usr/bin/acer-control-center

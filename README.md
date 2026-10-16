@@ -43,6 +43,15 @@ sudo ./install.sh
 
 After installation reboot the laptop.
 
+If the application reports `Failed to open /dev/acer_io`, load the driver with:
+
+```bash
+sudo modprobe acer_io
+```
+
+If that reports that the module cannot be found, rerun the installer so DKMS can
+build the driver for your current kernel.
+
 ## Uninstall
 
 ```bash

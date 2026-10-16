@@ -123,6 +123,14 @@ echo "==> Installing DKMS driver..."
 make -C "$ROOT_DIR/driver" dkmsinstall
 
 echo
+echo "==> Loading the acer_io kernel module..."
+
+printf '%s\n' acer_io > /etc/modules-load.d/acer-control-center.conf
+chmod 644 /etc/modules-load.d/acer-control-center.conf
+
+modprobe acer_io
+
+echo
 echo "==> Building libacercontrol..."
 
 if [[ -d "$ROOT_DIR/lib/build" ]]; then
