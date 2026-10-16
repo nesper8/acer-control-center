@@ -52,6 +52,25 @@ sudo modprobe acer_io
 If that reports that the module cannot be found, rerun the installer so DKMS can
 build the driver for your current kernel.
 
+If `modprobe acer_io` reports `Key was rejected by service`, Secure Boot is
+rejecting the unsigned or untrusted kernel module. Check its status with:
+
+```bash
+sudo mokutil --sb-state
+```
+
+You can disable Secure Boot in your UEFI settings, or enroll the DKMS signing
+certificate if one is available:
+
+```bash
+sudo mokutil --import /var/lib/dkms/mok.pub
+```
+
+Set an enrollment password, reboot, and confirm enrollment in the MOK Manager
+screen. After booting, try `sudo modprobe acer_io` again. If the certificate
+does not exist, configure DKMS module signing for your system or disable Secure
+Boot; do not import a private key.
+
 ## Uninstall
 
 ```bash
