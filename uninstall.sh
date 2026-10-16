@@ -12,6 +12,12 @@ echo " Acer Control Center Uninstaller"
 echo "=========================================="
 echo
 
+if [[ -f /etc/redhat-release ]]; then
+    LIB_DIR=/usr/lib64
+else
+    LIB_DIR=/usr/local/lib64
+fi
+
 echo "==> Stopping daemon..."
 
 systemctl stop acer-control-daemon.service 2>/dev/null || true
@@ -52,8 +58,10 @@ rm -f /usr/share/pixmaps/acer-control-center.png
 
 echo "==> Removing shared library..."
 
-rm -f /usr/lib/libacercontrol.so
-rm -f /usr/lib64/libacercontrol.so
+rm -f "$LIB_DIR"/libacercontrol.so*
+rm -f /usr/lib/libacercontrol.so*
+rm -f /usr/lib64/libacercontrol.so*
+rm -f /usr/local/lib64/libacercontrol.so*
 
 ldconfig
 

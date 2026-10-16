@@ -1,4 +1,8 @@
 fn main() {
-    println!("cargo:rustc-link-search=native=/usr/local/lib64");
+    let lib_dir = std::env::var("ACERCONTROL_LIB_DIR")
+        .unwrap_or_else(|_| "/usr/local/lib64".to_string());
+
+    println!("cargo:rerun-if-env-changed=ACERCONTROL_LIB_DIR");
+    println!("cargo:rustc-link-search=native={lib_dir}");
     println!("cargo:rustc-link-lib=acercontrol");
 }

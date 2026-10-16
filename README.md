@@ -31,6 +31,9 @@ cd acer-control-center
 sudo ./install.sh
 ```
 
+On Fedora, the installer places `libacercontrol` in `/usr/lib64` and configures
+the GUI to link against that system library directory.
+
 or
 ```bash
 wget https://raw.githubusercontent.com/stanlysilas/acer-control-center/master/install.sh

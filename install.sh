@@ -11,6 +11,13 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LIB_DIR=/usr/local/lib64
+MESON_INSTALL_ARGS=()
+
+if [[ -f /etc/redhat-release ]]; then
+    LIB_DIR=/usr/lib64
+    MESON_INSTALL_ARGS=(--prefix=/usr --libdir=lib64)
+fi
 
 echo "=========================================="
 echo " Acer Control Center Installer"
@@ -119,9 +126,9 @@ echo
 echo "==> Building libacercontrol..."
 
 if [[ -d "$ROOT_DIR/lib/build" ]]; then
-    meson setup "$ROOT_DIR/lib/build" "$ROOT_DIR/lib" --reconfigure
+    meson setup "$ROOT_DIR/lib/build" "$ROOT_DIR/lib" --reconfigure "${MESON_INSTALL_ARGS[@]}"
 else
-    meson setup "$ROOT_DIR/lib/build" "$ROOT_DIR/lib"
+    meson setup "$ROOT_DIR/lib/build" "$ROOT_DIR/lib" "${MESON_INSTALL_ARGS[@]}"
 fi
 
 meson compile -C "$ROOT_DIR/lib/build"
@@ -150,7 +157,7 @@ install -Dm755 \
 echo
 echo "==> Building GUI..."
 
-cargo build \
+ACERCONTROL_LIB_DIR="$LIB_DIR" cargo build \
     --release \
     --manifest-path "$ROOT_DIR/gui/Cargo.toml"
 
