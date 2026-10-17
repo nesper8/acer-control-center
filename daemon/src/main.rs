@@ -16,7 +16,7 @@ use zbus::connection::Builder;
 async fn main() -> Result<()> {
     let backend = Arc::new(SysfsBackend::new());
 
-    let service = Arc::new(AcerService::new(backend));
+    let service = Arc::new(AcerService::new(backend).map_err(anyhow::Error::msg)?);
 
     let _connection = Builder::system()?
         .name("io.github.stanlysilas.AcerControl")?

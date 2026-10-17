@@ -7,6 +7,7 @@ Modern Linux control center for Acer gaming laptops based on the Clevo platform.
 - Modern GTK4 / Libadwaita interface
 - Dashboard
 - Keyboard RGB control
+- Automatic restoration of the last keyboard RGB color and brightness after reboot
 - Live keyboard preview
 - System D-Bus daemon
 - DKMS kernel driver
@@ -42,6 +43,10 @@ sudo ./install.sh
 ```
 
 After installation reboot the laptop.
+
+Keyboard RGB color and brightness are saved automatically when changed and
+restored by the daemon on startup. The saved settings are kept at
+`/var/lib/acer-control-daemon/keyboard-rgb`.
 
 If the application reports `Failed to open /dev/acer_io`, load the driver with:
 
